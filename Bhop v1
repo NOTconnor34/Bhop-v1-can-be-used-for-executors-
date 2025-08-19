@@ -1,0 +1,281 @@
+--// Bhop v1 by conner34/robloxplayerinstaller on discord \\--
+
+local player = game.Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+local screenGui = Instance.new("ScreenGui")
+screenGui.Parent = playerGui
+
+local textLabel = Instance.new("TextLabel")
+textLabel.Size = UDim2.new(1, 0, 1, 0)
+textLabel.BackgroundTransparency = 1
+textLabel.Text = "Bhop v1 Loaded!\nMade by conner34/robloxplayerinstaller on Discord"
+textLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+textLabel.TextScaled = true
+textLabel.Font = Enum.Font.FredokaOne
+textLabel.Parent = screenGui
+
+for i = 0, 1, 0.05 do
+	textLabel.TextTransparency = 1 - i
+	wait(0.05)
+end
+
+wait(2)
+
+for i = 0, 1, 0.05 do
+	textLabel.TextTransparency = i
+	wait(0.05)
+end
+
+screenGui:Destroy()
+wait(1)
+
+repeat task.wait() until game:GetService("Players").LocalPlayer.Character
+
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local Players = game:GetService("Players")
+
+local settings = {
+	toggleMouse = {enabled = true, key = Enum.KeyCode.F},
+	showBody = true,
+	sensitivity = 0.6,
+	smoothness = 0.05,
+	fov = 80,
+	headOffset = CFrame.new(0, 0.7, 0),
+	easingTime = 0.1,
+	speeds = {
+		enabled = true,
+		forward = 16,
+		backward = 10,
+		side = 15,
+		diagonal = 16,
+		run = 60,
+		runFOV = 85
+	}
+}
+
+local cam = workspace.CurrentCamera
+local plr = Players.LocalPlayer
+local mouse = plr:GetMouse()
+mouse.Icon = "http://www.roblox.com/asset/?id=569021388"
+
+local char = plr.Character or plr.CharacterAdded:Wait()
+local hum = char:WaitForChild("Humanoid")
+local root = char:WaitForChild("HumanoidRootPart")
+local head = char:WaitForChild("Head")
+
+local camPos, targetCamPos = cam.CFrame.Position, cam.CFrame.Position
+local angX, targetAngX = 0, 0
+local angY, targetAngY = 0, 0
+
+local active = true
+local freeMouse = false
+local baseFOV = settings.fov
+local keyStates = {w = false, a = false, s = false, d = false, shift = false}
+
+local function updateCharTransparency()
+	for _, obj in ipairs(char:GetChildren()) do
+		if settings.showBody then
+			if obj.Name == "Head" then
+				obj.LocalTransparencyModifier = 1
+				obj.CanCollide = false
+				if obj:FindFirstChild("face") then
+					obj.face.LocalTransparencyModifier = 1
+				end
+			end
+		else
+			if obj:IsA("BasePart") or obj:IsA("UnionOperation") or obj:IsA("MeshPart") then
+				obj.LocalTransparencyModifier = 1
+				obj.CanCollide = false
+			end
+		end
+		if obj:IsA("Accessory") or obj:IsA("Hat") then
+			local handle = obj:FindFirstChild("Handle")
+			if handle then
+				handle.LocalTransparencyModifier = 1
+				handle.CanCollide = false
+			end
+		end
+	end
+end
+
+local function lerp(a, b, t)
+	return a * (1 - t) + b * t
+end
+
+UIS.InputChanged:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = Vector2.new(input.Delta.x / settings.sensitivity, input.Delta.y / settings.sensitivity) * settings.smoothness
+		local x = targetAngX - delta.Y
+		targetAngX = math.clamp(x, -80, 80)
+		targetAngY = (targetAngY - delta.X) % 360
+	end
+end)
+
+UIS.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Keyboard then
+		if input.KeyCode == settings.toggleMouse.key and settings.toggleMouse.enabled then
+			freeMouse = not freeMouse
+		end
+		if input.KeyCode == Enum.KeyCode.W then keyStates.w = true end
+		if input.KeyCode == Enum.KeyCode.A then keyStates.a = true end
+		if input.KeyCode == Enum.KeyCode.S then keyStates.s = true end
+		if input.KeyCode == Enum.KeyCode.D then keyStates.d = true end
+		if input.KeyCode == Enum.KeyCode.LeftShift then keyStates.shift = true end
+	end
+end)
+
+UIS.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.Keyboard then
+		if input.KeyCode == Enum.KeyCode.W then keyStates.w = false end
+		if input.KeyCode == Enum.KeyCode.A then keyStates.a = false end
+		if input.KeyCode == Enum.KeyCode.S then keyStates.s = false end
+		if input.KeyCode == Enum.KeyCode.D then keyStates.d = false end
+		if input.KeyCode == Enum.KeyCode.LeftShift then keyStates.shift = false end
+	end
+end)
+
+local renderConn
+renderConn = RunService.RenderStepped:Connect(function()
+	if active then
+		updateCharTransparency()
+		camPos = camPos + (targetCamPos - camPos) * 0.28
+		angX = angX + (targetAngX - angX) * 0.35
+		local diff = targetAngY - angY
+		if math.abs(diff) > 180 then
+			diff = diff - (diff / math.abs(diff)) * 360
+		end
+		angY = (angY + diff * 0.35) % 360
+
+		cam.CameraType = Enum.CameraType.Scriptable
+		cam.CFrame = CFrame.new(head.Position)
+			* CFrame.Angles(0, math.rad(angY), 0)
+			* CFrame.Angles(math.rad(angX), 0, 0)
+			* settings.headOffset
+
+		root.CFrame = CFrame.new(root.Position) * CFrame.Angles(0, math.rad(angY), 0)
+	else
+		UIS.MouseBehavior = Enum.MouseBehavior.Default
+	end
+
+	active = (cam.Focus.Position - cam.CFrame.Position).Magnitude >= 1
+	UIS.MouseBehavior = freeMouse and Enum.MouseBehavior.Default or Enum.MouseBehavior.LockCenter
+	if not settings.toggleMouse.enabled then freeMouse = false end
+
+	cam.FieldOfView = settings.fov
+
+	if settings.speeds.enabled then
+		local w, a, s, d, shift = keyStates.w, keyStates.a, keyStates.s, keyStates.d, keyStates.shift
+		if w and s then return end
+
+		if w and not shift then
+			settings.fov = lerp(settings.fov, baseFOV, settings.easingTime)
+			hum.WalkSpeed = lerp(hum.WalkSpeed, settings.speeds.forward, settings.easingTime)
+		elseif w and a or w and d then
+			hum.WalkSpeed = lerp(hum.WalkSpeed, settings.speeds.diagonal, settings.easingTime)
+		elseif s then
+			hum.WalkSpeed = lerp(hum.WalkSpeed, settings.speeds.backward, settings.easingTime)
+		elseif d or a then
+			hum.WalkSpeed = lerp(hum.WalkSpeed, settings.speeds.side, settings.easingTime)
+		end
+
+		if shift and w then
+			settings.fov = lerp(settings.fov, settings.speeds.runFOV, settings.easingTime)
+			hum.WalkSpeed = lerp(hum.WalkSpeed, settings.speeds.run, settings.easingTime)
+		end
+	end
+end)
+
+hum.Died:Connect(function()
+	if renderConn then
+		renderConn:Disconnect()
+		cam.CameraType = Enum.CameraType.Custom
+		UIS.MouseBehavior = Enum.MouseBehavior.Default
+	end
+end)
+
+
+
+local plr = game:GetService("Players").LocalPlayer
+local char = plr.Character or plr.CharacterAdded:Wait()
+local hum = char:WaitForChild("Humanoid") :: Humanoid
+local root = char:WaitForChild("HumanoidRootPart") :: BasePart
+local cam = workspace.CurrentCamera
+
+local runSrv = game:GetService("RunService")
+local ctxAction = game:GetService("ContextActionService")
+
+local walkSpd = 16
+local airSpd = 10
+local accelGround = 10
+local decelGround = 12
+local accelAir = 0.5
+
+local vel = Vector3.new()
+local lv = Instance.new("LinearVelocity")
+lv.Attachment0 = root:WaitForChild("RootAttachment")
+lv.MaxForce = 25500
+lv.RelativeTo = Enum.ActuatorRelativeTo.World
+lv.VelocityConstraintMode = Enum.VelocityConstraintMode.Plane
+lv.PrimaryTangentAxis = Vector3.xAxis
+lv.SecondaryTangentAxis = Vector3.zAxis
+lv.Parent = root
+
+local function applyGroundMovement(direction: Vector3, maxSpd: number, accel: number, decel: number)
+	local target = direction * maxSpd
+	local diff = target - vel
+	local rate = (vel.Magnitude < maxSpd or direction.Magnitude > 0) and accel or decel
+	vel += diff * rate * runSrv.Heartbeat:Wait()
+end
+
+local function applyAirMovement(direction: Vector3, maxSpd: number, accel: number)
+	local proj = vel:Dot(direction)
+	local add = maxSpd - proj
+	if add <= 0 then return end
+	local change = add * runSrv.Heartbeat:Wait() * maxSpd
+	change = math.clamp(change, -0.001, add)
+	vel += change * direction
+end
+
+local moveConn
+moveConn = runSrv.RenderStepped:Connect(function()
+	for _, part in ipairs(char:GetChildren()) do
+		if part:IsA("BasePart") then
+			part.CustomPhysicalProperties = PhysicalProperties.new(0.7, 0, 0, 100, 100)
+		end
+	end
+	
+	hum.WalkSpeed = walkSpd
+	hum.UseJumpPower = true
+
+	local onGround = hum:GetState() ~= Enum.HumanoidStateType.Freefall
+	if onGround and not hum.Jump then
+		applyGroundMovement(hum.MoveDirection, walkSpd, accelGround, decelGround)
+	else
+		applyAirMovement(hum.MoveDirection, airSpd, accelAir)
+	end
+
+	if hum:GetState() ~= Enum.HumanoidStateType.Climbing then
+		lv.PlaneVelocity = Vector2.new(vel.X, vel.Z)
+	else
+		lv.PlaneVelocity = Vector2.zero
+	end
+end)
+
+task.spawn(function()
+	local shiftFlag = false
+	while task.wait() do
+		local grounded = hum:GetState() ~= Enum.HumanoidStateType.Freefall
+		if grounded and shiftFlag then
+			task.wait(0.75)
+			shiftFlag = false
+		end
+	end
+end)
+
+hum.Died:Connect(function()
+	if moveConn then
+		moveConn:Disconnect()
+	end
+end)
